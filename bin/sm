@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+
+require 'sound_manager'
+
+include SoundManager
+
+main
