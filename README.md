@@ -2,25 +2,26 @@
 
 Sound manager is a tool to manage any large collection of raw and processed sounds. All the metadata is kept in a single separate file, no modification to the original files is ever performed.
 
-There are two types of sound: Raw or Processed. A Raw sound have the following attributes:
+There are two types of sound: Raw and Processed. A Raw sound has the following attributes:
 
 * Name
 * Location (where the recording was performed)
 * Duration (automatically populated from the file)
 * Date and time (when the recording was performed, automatically populated from the filename)
+
 The command to add a raw file to the collection is `add`.
 
 A Processed sound is similar but contains a reference to the original raw sound it was created from. The command to add a processed file to the collection is `link`.
 
-All the sounds are referenced by a unique ID (sha256). Throughout the library, this ID (or a shorted version, as long as no conflict exists) can be used to reference the file.
+All the sounds are referenced by a unique ID (sha256). Throughout the library, this ID (or a shortened version, as long as no conflict exists) can be used to reference the file.
 
 # Installation
 
 `gem install sound_manager`
 
-By default, the files are expected in `~/sounds`. To change this settings, modify the config.rb file with the correct location.
+By default, the files are expected in `~/sounds`. To change this setting, modify the `config.rb` file with the correct location.
 
-You will need `audacity` to use the `edit` functionality and `sox` to use `play` and `stats`.
+You will need [audacity](http://www.audacityteam.org/) to use the `edit` functionality and [sox](http://sox.sourceforge.net/) to use `play` and `stats`.
 
 # Usage
 
