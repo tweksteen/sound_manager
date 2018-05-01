@@ -40,7 +40,7 @@ module SoundManager
   end
 
   def init_db
-    db = Sequel.sqlite File.join(SOUND_LIBRARY_PATH, 'sounds.sqlite')
+    db = Sequel.sqlite(File.join(SOUND_LIBRARY_PATH, 'sounds.sqlite'))
     create_tables(db)
     require 'sound_manager/models'
   end
@@ -103,8 +103,9 @@ module SoundManager
 
   def search(keyword)
     qs = Sound.search(keyword)
-    qrs = RawSound.search(keyword).select_all(:sounds)
-    puts qs.union(qrs).order(:name).all
+    #qrs = RawSound.search(keyword).select_all(:sounds)
+    #puts qs.union(qrs).order(:name).all
+    puts qs.order(:name).all
   end
 
   def main
