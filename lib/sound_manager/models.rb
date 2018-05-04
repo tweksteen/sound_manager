@@ -1,102 +1,103 @@
 require 'sequel'
 
 module SoundManager
+  # The base class for all type of sounds
   class Sound < Sequel::Model
-    plugin :class_table_inheritance, :key=>:type
-    many_to_many :tags, :left_key=>:sound_sha256,
-                 :right_key=>:tag_id, :join_table=>:sounds_tags
-    one_to_many :processed_sounds, :key=>:origin
+    plugin :class_table_inheritance, key: :type
+    many_to_many :tags, left_key: :sound_sha256, right_key: :tag_id,
+                        join_table: :sounds_tags
+    one_to_many :processed_sounds, key: :origin
 
+    # Find a sound by either its file or its digest value.
     def self.find(ref)
       if File.exist?(ref)
         s = Sound[Digest::SHA256.file(ref).hexdigest]
         raise 'File not in the database!' if s.nil?
         return s
-      else
-        s = Sound.where(Sequel.ilike(:sha256, "#{ref}%"))
-        if s.count > 1
-          raise 'Too many matches'
-        elsif s.count == 1
-          s.first
-        else
-          raise 'Hash not found'
-        end
       end
+      s = Sound.where(Sequel.ilike(:sha256, "#{ref}%"))
+      raise 'Too many matches' if s.count > 1
+      raise 'Hash not found' if s.count.zero?
+      s.first
     end
 
     def self.search(keyword)
       Sound.where(Sequel.ilike(:name, "%#{keyword}%"))
+           .or(tags: Tag.where(name: keyword))
+    end
+
+    def short_sha
+      sha256[0..6]
+    end
+
+    def short_name
+      name[0..31]
     end
 
     def to_s
-      "%s  %-32s  %.2fs" % [sha256[0..6], name[0..31], duration]
+      d = format('%.2fs', duration)
+      format('%s  %-32s  %7s', short_sha, short_name, d)
     end
 
-    def show
-      puts "Name: #{name}"
-      puts "Hash: #{sha256}"
-      puts "Path: #{path}"
-      puts "Type: #{type}"
+    def info
+      tag_s = tags.collect(&:name).join(', ')
+      [ "Name: #{name}", "Hash: #{sha256}",
+        "Path: #{path}", "Type: #{type}",
+        "Tags: #{tag_s}" ].join("\n")
     end
 
-    def abs_path
-      File.join(SOUND_LIBRARY_PATH, path)
+    def abs_path(library_path)
+      File.join(library_path, path)
     end
 
-    def play
-      %x[sox #{abs_path} -d]
+    def play(library_path)
+      `sox #{abs_path(library_path)} -d`
     end
 
-    def edit
-      %x[audacity #{abs_path} 2>/dev/null]
+    def edit(library_path)
+      `audacity #{abs_path(library_path)} 2>/dev/null`
     end
 
-    def stats
-      %x[sox #{abs_path} -n stats 2>&1]
+    def stats(library_path)
+      `sox #{abs_path(library_path)} -n stats 2>&1`
     end
   end
 
+  # Raw sound, directly from a capture.
   class RawSound < Sound
-
     def self.search(keyword)
-      qs = RawSound.where(Sequel.ilike(:location, "%#{keyword}%"))
-      #qs = qs.exclude(Sequel.ilike(:name, "%#{keyword}%"))
-      qs
+      RawSound.where(Sequel.ilike(:location, "%#{keyword}%"))
     end
 
     def to_s
-      d = "%.2fs" % duration
-      "%s  %-32s  %7s  %s" %
-       [sha256[0..6], name[0..31], d,
-        recorded_at.strftime("%Y-%m-%d %H:%M:%S")]
+      d = format('%.2fs', duration)
+      format('%s  %-32s  %7s  %s', short_sha, short_name, d,
+             recorded_at.strftime('%Y-%m-%d %H:%M:%S'))
     end
 
-    def show
-      super
-      puts "Recorded at: #{recorded_at}"
-      puts "Location: #{location}"
+    def info
+      [ super,  "Recorded at: #{recorded_at}",
+        "Location: #{location}" ].join("\n")
     end
   end
 
+  # Processed sounds, reference a raw sound.
   class ProcessedSound < Sound
-    many_to_one :origin, :key=>:origin_sha256, :class=>Sound
-
+    many_to_one :origin, key: :origin_sha256, class: Sound
     def to_s
-      d = "%.2fs" % duration
-      "%s  %-32s  %7s  %s" %
-       [sha256[0..6], name[0..31], d,
-        tags.collect(&:name).join(",")
-       ]
+      d = format('%.2fs', duration)
+      format('%s  %-32s  %7s  %s', short_sha, short_name, d,
+             tags.collect(&:name).join(','))
     end
 
-    def show
-      super
-      puts "Origin: #{origin_sha256}"
+    def info
+      [ super, "Origin: #{origin_sha256}" ].join("\n")
     end
   end
 
+  # Tag associated with a sound. May contain an arbitrary string.
   class Tag < Sequel::Model
-    many_to_many :sounds, :right_key=>:sound_sha256,
-                 :left_key=>:tag_id, :join_table=>:sounds_tags
+    many_to_many :sounds, right_key: :sound_sha256, left_key: :tag_id,
+                          join_table: :sounds_tags
   end
 end
