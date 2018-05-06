@@ -41,17 +41,22 @@ module SoundManager
 
     def info
       tag_s = tags.collect(&:name).join(', ')
-      [ "Name: #{name}", "Hash: #{sha256}",
-        "Path: #{path}", "Type: #{type}",
-        "Tags: #{tag_s}" ].join("\n")
+      ["Name: #{name}", "Hash: #{sha256}",
+       "Path: #{path}", "Type: #{type}",
+       "Tags: #{tag_s}"].join("\n")
     end
 
     def abs_path(library_path)
       File.join(library_path, path)
     end
 
+    # Plays a sound directly using Sox. If an interrupt is raised,
+    # we make sure Sox has time to reset the terminal in a sane mode.
     def play(library_path)
-      `sox #{abs_path(library_path)} -d`
+      pid = spawn("sox #{abs_path(library_path)} -d")
+      Process.wait pid
+    rescue Interrupt
+      Process.wait pid
     end
 
     def edit(library_path)
@@ -76,8 +81,8 @@ module SoundManager
     end
 
     def info
-      [ super,  "Recorded at: #{recorded_at}",
-        "Location: #{location}" ].join("\n")
+      [super, "Recorded at: #{recorded_at}",
+       "Location: #{location}"].join("\n")
     end
   end
 
@@ -91,7 +96,7 @@ module SoundManager
     end
 
     def info
-      [ super, "Origin: #{origin_sha256}" ].join("\n")
+      [super, "Origin: #{origin_sha256}"].join("\n")
     end
   end
 

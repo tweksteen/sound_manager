@@ -1,17 +1,18 @@
-require 'rubygems'
-require 'time'
-require 'sequel'
 require 'digest'
+require 'optparse'
+require 'time'
+
+require 'sequel'
 require 'waveinfo'
 WaveInfo.debug = false
 
 require 'sound_manager/db_adapter'
 
 module SoundManager
-  # High-level manager to handle commands.
+  # High-level controller to dispatch commands.
   class Controller
     COMMANDS = { add: :add_raw, edit: :edit, info: :info, link: :link,
-                 ls: :list, play: :play, rename: :rename, 
+                 ls: :list, play: :play, rename: :rename,
                  search: :search, stats: :stats, tag: :tag }.freeze
     # Returns the relative path of the file within the library.
     def relative_path(filename)
@@ -84,15 +85,45 @@ module SoundManager
     end
 
     def list(argv)
-      if argv.length > 1
-        puts 'usage: sm.rb list [expression]'
-        return
-      elsif argv.length == 1
-        ds = Sound.where(Sequel.ilike(:name, argv.first))
-      else
-        ds = Sound
+      options = {}
+      opts = OptionParser.new
+      opts.on('-t', nil, 'Sort by date (raw sounds only)') do |t|
+        options[:time] = t
       end
-      ds.order(:name).each { |s| puts s }
+      opts.on('-r', nil, 'Reverse the sort') do |r|
+        options[:reverse] = r
+      end
+      opts.on('-e', '--expr [%EXPR%]',
+              'Filter sound with name matching') do |expr|
+        options[:expr] = expr
+      end
+      begin
+        opts.parse(argv)
+      rescue OptionParser::ParseError
+        puts 'usage: sm.rb ls [-tr] [--expr=%]'
+        return
+      end
+      ds = if options.include? :time
+             RawSound.dataset
+           else
+             Sound.dataset
+           end
+      ds = if options.include? :expr
+             ds.where(Sequel.ilike(:name, options[:expr]))
+           else
+             ds
+           end
+      ds = if options.include? :time
+             ds.order(:recorded_at)
+           else
+             ds.order(:name)
+           end
+      ds = if options.include? :reverse
+             ds.reverse
+           else
+             ds
+           end
+      ds.each { |s| puts s }
     end
 
     def play(argv)
@@ -158,9 +189,9 @@ module SoundManager
       puts "usage: sm.rb <#{COMMANDS.keys.join('|')}>"
     end
 
-    def initialize(library_path, db)
+    def initialize(library_path, dba)
       @library_path = library_path
-      @db = db
+      @dba = dba
     end
 
     def self.build(library_path)

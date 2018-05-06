@@ -49,12 +49,12 @@ module SoundManager
       create_tags_table
     end
 
-    def initialize(library_path, filename='sounds.sqlite')
-      if filename.nil?
-        @db = Sequel.sqlite
-      else
-        @db = Sequel.sqlite(File.join(library_path, filename))
-      end
+    def initialize(library_path, filename = 'sounds.sqlite')
+      @db = if filename.nil?
+              Sequel.sqlite
+            else
+              Sequel.sqlite(File.join(library_path, filename))
+            end
       create_tables
       require 'sound_manager/models'
     end
